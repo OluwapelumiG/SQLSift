@@ -31,9 +31,7 @@ export default function MigrationHelper() {
     const [error, setError] = useState<string | null>(null);
 
     const addTable = () => {
-        if (tables.length < 2) {
-            setTables([...tables, { name: `table${tables.length + 1}`, columns: [{ name: 'id', type: 'INT' }], data: [] }]);
-        }
+        setTables([...tables, { name: `table${tables.length + 1}`, columns: [{ name: 'id', type: 'INT' }], data: [] }]);
     };
 
     const removeTable = (index: number) => {
@@ -132,11 +130,9 @@ export default function MigrationHelper() {
                                 <Database className="text-indigo-400" size={20} />
                                 Schema Definition
                             </h2>
-                            {tables.length < 2 && (
-                                <button onClick={addTable} className="btn-primary flex items-center gap-2">
-                                    <Plus size={18} /> Add Table
-                                </button>
-                            )}
+                            <button onClick={addTable} className="btn-primary flex items-center gap-2">
+                                <Plus size={18} /> Add Table
+                            </button>
                         </div>
 
                         <div className="table-schema-grid">
