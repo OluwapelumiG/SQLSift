@@ -426,7 +426,7 @@ export default function Landing() {
                             <a href="#" className="hover:text-white transition-colors">Status</a>
                         </div>
                         <div className="text-xs text-slate-700">
-                            © 2024 SQLSift Inc.
+                            © {new Date().getFullYear()} SQLSift Inc.
                         </div>
                     </div>
                 </footer>
