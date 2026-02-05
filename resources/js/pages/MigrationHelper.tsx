@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import alasql from 'alasql';
 import Papa from 'papaparse';
@@ -17,8 +17,8 @@ import {
     DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { UserMenuContent } from '@/components/user-menu-content';
-import { usePage } from '@inertiajs/react';
 import { UserCircle } from 'lucide-react';
+import { AppLogo } from '@/components/app-logo';
 
 interface Column {
     name: string;
@@ -30,23 +30,6 @@ interface Table {
     columns: Column[];
     data: any[];
 }
-
-const Logo = () => (
-    <div className="flex items-center gap-3 select-none">
-        <div className="relative w-8 h-8 flex flex-col justify-center gap-1.5 overflow-hidden">
-            <div className="h-[3px] bg-slate-400 rounded-full w-full opacity-60"></div>
-            <div className="h-[3px] bg-cyan-400 rounded-full w-full"></div>
-            <div className="h-[3px] bg-slate-400 rounded-full w-full opacity-60"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-full w-[2px] bg-cyan-400/50 rotate-[20deg]"></div>
-            </div>
-        </div>
-        <div className="flex items-baseline tracking-tight">
-            <span className="text-xl font-light text-slate-400 uppercase">SQL</span>
-            <span className="text-2xl font-extrabold text-white">Sift</span>
-        </div>
-    </div>
-);
 
 export default function SQLSift() {
     const [tables, setTables] = useState<Table[]>([]);
@@ -261,17 +244,23 @@ export default function SQLSift() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0B0E14] text-slate-200 p-8 font-sans selection:bg-cyan-500/20 selection:text-cyan-400">
-            <Head title="SQLSift - Precision Data Migration" />
-            
-            <header className="flex justify-between items-center mb-16 border-b border-white/5 pb-6">
-                <div>
-                    <Logo />
-                    <p className="text-slate-500 font-mono text-[10px] mt-1 tracking-widest pl-11">
-                        PRECISION AT SCALE
-                    </p>
+        <div className="min-h-screen bg-[#0B0E14] text-white selection:bg-cyan-500/30 font-sans overflow-x-hidden relative">
+             <Head title="Migration Helper" />
+             
+             {/* Background Gradients */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-cyan-500/10 blur-[150px] translate-x-1/2 -translate-y-1/2 rounded-full" />
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] -translate-x-1/3 translate-y-1/3 rounded-full" />
+            </div>
+
+            <nav className="relative z-50 flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0B0E14]/80 backdrop-blur-md">
+                <div className="flex items-center gap-2">
+                    <Link href="/">
+                        <AppLogo />
+                    </Link>
                 </div>
-                <div className="flex items-center gap-6">
+                
+                <div className="flex items-center gap-4">
                     <button 
                         onClick={() => setIsCommandPaletteOpen(true)}
                         className="flex items-center gap-2 group border border-white/5 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all"
@@ -295,7 +284,7 @@ export default function SQLSift() {
                         </DropdownMenu>
                     )}
                 </div>
-            </header>
+            </nav>
 
             <main className="max-w-7xl mx-auto space-y-16 pb-32">
                 <section className="text-center space-y-6">

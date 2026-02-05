@@ -41,9 +41,11 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
 
     return (
         <div className="min-h-screen bg-[#0B0E14] text-[#F8FAFC]">
-             {/* Background Effects */}
-            <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none z-0" />
-            <div className="fixed top-0 right-0 w-[800px] h-[800px] bg-cyan-500/5 blur-[150px] -z-10 rounded-full translate-x-1/2 -translate-y-1/2" />
+             {/* Background Gradients */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-cyan-500/10 blur-[150px] translate-x-1/2 -translate-y-1/2 rounded-full" />
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] -translate-x-1/3 translate-y-1/3 rounded-full" />
+            </div>
             
             {/* Header */}
             <nav className="relative z-50 flex items-center justify-between px-8 py-6 border-b border-white/5 bg-black/10 backdrop-blur-md">
