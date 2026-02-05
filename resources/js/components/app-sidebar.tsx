@@ -18,12 +18,7 @@ import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Migrate',
+        title: 'SQLSift',
         href: '/migrate',
         icon: Database,
     },
@@ -49,7 +44,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href="/migrate" prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

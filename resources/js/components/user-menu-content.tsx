@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings, Lock, ShieldCheck } from 'lucide-react';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -10,6 +10,8 @@ import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
+import { edit as editPassword } from '@/routes/user-password';
+import { show as showTwoFactor } from '@/routes/two-factor';
 import type { User } from '@/types';
 
 type Props = {
@@ -42,6 +44,28 @@ export function UserMenuContent({ user }: Props) {
                     >
                         <Settings className="mr-2" />
                         Settings
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link
+                        className="block w-full cursor-pointer"
+                        href={editPassword()}
+                        prefetch
+                        onClick={cleanup}
+                    >
+                        <Lock className="mr-2" />
+                        Password
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link
+                        className="block w-full cursor-pointer"
+                        href={showTwoFactor()}
+                        prefetch
+                        onClick={cleanup}
+                    >
+                        <ShieldCheck className="mr-2" />
+                        Two Factor Auth
                     </Link>
                 </DropdownMenuItem>
             </DropdownMenuGroup>

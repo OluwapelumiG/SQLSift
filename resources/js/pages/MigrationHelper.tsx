@@ -1,16 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import alasql from 'alasql';
 import Papa from 'papaparse';
-import { Plus, Trash2, Upload, Database, Play, Download, X, Search, Terminal, AlertCircle } from 'lucide-react';
+import { 
+    Plus, Trash2, Upload, Database, Play, Download, X, Search, Terminal, 
+    AlertCircle, Command, Sparkles, Layers, ChevronRight, ChevronDown
+} from 'lucide-react';
 import { Editor, loader } from '@monaco-editor/react';
-import '../../css/MigrationHelper.css';
+import { Command as CommandMenu } from 'cmdk';
+// CSS removed to prevent conflicts - using pure Tailwind
 import { DetailedDataTable } from '@/components/DetailedDataTable';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { UserMenuContent } from '@/components/user-menu-content';
+import { usePage } from '@inertiajs/react';
+import { UserCircle } from 'lucide-react';
 
 interface Column {
     name: string;
-    type: string;
+    type: 'STRING' | 'INT' | 'FLOAT' | 'BOOLEAN';
 }
 
 interface Table {
@@ -19,14 +31,30 @@ interface Table {
     data: any[];
 }
 
-export default function MigrationHelper() {
-    const [tables, setTables] = useState<Table[]>([
-        { name: 'table1', columns: [{ name: 'id', type: 'INT' }], data: [] },
-        { name: 'table2', columns: [{ name: 'id', type: 'INT' }], data: [] }
-    ]);
+const Logo = () => (
+    <div className="flex items-center gap-3 select-none">
+        <div className="relative w-8 h-8 flex flex-col justify-center gap-1.5 overflow-hidden">
+            <div className="h-[3px] bg-slate-400 rounded-full w-full opacity-60"></div>
+            <div className="h-[3px] bg-cyan-400 rounded-full w-full"></div>
+            <div className="h-[3px] bg-slate-400 rounded-full w-full opacity-60"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-full w-[2px] bg-cyan-400/50 rotate-[20deg]"></div>
+            </div>
+        </div>
+        <div className="flex items-baseline tracking-tight">
+            <span className="text-xl font-light text-slate-400 uppercase">SQL</span>
+            <span className="text-2xl font-extrabold text-white">Sift</span>
+        </div>
+    </div>
+);
+
+export default function SQLSift() {
+    const [tables, setTables] = useState<Table[]>([]);
     const [query, setQuery] = useState('SELECT * FROM table1');
     const [results, setResults] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [isSuccessGlow, setIsSuccessGlow] = useState(false);
+    const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
     const addTable = () => {
         setTables([...tables, { name: `table${tables.length + 1}`, columns: [{ name: 'id', type: 'INT' }], data: [] }]);
@@ -48,13 +76,13 @@ export default function MigrationHelper() {
         setTables(newTables);
     };
 
-    const updateTable = (index: number, field: string, value: any) => {
+    const updateTable = (index: number, field: keyof Table, value: any) => {
         const newTables = [...tables];
         (newTables[index] as any)[field] = value;
         setTables(newTables);
     };
 
-    const updateColumn = (tableIndex: number, colIndex: number, field: string, value: string) => {
+    const updateColumn = (tableIndex: number, colIndex: number, field: keyof Column, value: string) => {
         const newTables = [...tables];
         (newTables[tableIndex].columns[colIndex] as any)[field] = value;
         setTables(newTables);
@@ -78,6 +106,8 @@ export default function MigrationHelper() {
     const runQuery = () => {
         try {
             setError(null);
+            setIsSuccessGlow(false);
+            
             // Drop existing tables in alasql to refresh
             tables.forEach(table => {
                 alasql(`DROP TABLE IF EXISTS ${table.name}`);
@@ -87,10 +117,25 @@ export default function MigrationHelper() {
 
             const res = alasql(query);
             setResults(Array.isArray(res) ? res : [res]);
+            
+            // Success animation
+            setIsSuccessGlow(true);
+            setTimeout(() => setIsSuccessGlow(false), 1500);
         } catch (err: any) {
             setError(err.message);
         }
     };
+
+    useEffect(() => {
+        const down = (e: KeyboardEvent) => {
+            if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                setIsCommandPaletteOpen((open) => !open);
+            }
+        }
+        document.addEventListener('keydown', down);
+        return () => document.removeEventListener('keydown', down);
+    }, []);
 
     const sqlKeywords = [
         'SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'ON', 
@@ -103,22 +148,15 @@ export default function MigrationHelper() {
         const markers: any[] = [];
         const lines = value.split('\n');
         
-        // Simple heuristic: if a word looks like a keyword (all caps or start of statement) 
-        // but isn't in our list, mark it.
         const keywordMap = new Set(sqlKeywords.map(k => k.toLowerCase()));
         
         lines.forEach((line, lineIdx) => {
-            // Match potential keywords (words that are all caps or common prefixes)
             const words = line.matchAll(/\b[A-Za-z]+\b/g);
             for (const match of words) {
                 const word = match[0];
                 const lowerWord = word.toLowerCase();
                 
-                // If the word is a known common SQL typo or a misspelled keyword
-                // This is a simplified check. We look for words that are "close" to keywords or
-                // words that are used where keywords usually are.
                 if (!keywordMap.has(lowerWord)) {
-                    // Check for common typos
                     const commonTypos: Record<string, string> = {
                         'selct': 'SELECT',
                         'frmo': 'FROM',
@@ -191,7 +229,6 @@ export default function MigrationHelper() {
                             detail: 'Table',
                             range: range,
                         })),
-                        // Also suggest all columns as general fields
                         ...tables.flatMap(table => 
                             table.columns.map(col => ({
                                 label: col.name,
@@ -224,124 +261,249 @@ export default function MigrationHelper() {
     };
 
     return (
-        <div className="migration-container">
-            <Head title="Database Migration Helper" />
+        <div className="min-h-screen bg-[#0B0E14] text-slate-200 p-8 font-sans selection:bg-cyan-500/20 selection:text-cyan-400">
+            <Head title="SQLSift - Precision Data Migration" />
             
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="max-w-6xl mx-auto"
-            >
-                <header className="mb-10 text-center">
-                    <h1 className="text-4xl font-black title-gradient mb-2">Migration Helper</h1>
-                    <p className="text-slate-400">Define schema, upload data, and query in-browser.</p>
-                </header>
+            <header className="flex justify-between items-center mb-16 border-b border-white/5 pb-6">
+                <div>
+                    <Logo />
+                    <p className="text-slate-500 font-mono text-[10px] mt-1 tracking-widest pl-11">
+                        PRECISION AT SCALE
+                    </p>
+                </div>
+                <div className="flex items-center gap-6">
+                    <button 
+                        onClick={() => setIsCommandPaletteOpen(true)}
+                        className="flex items-center gap-2 group border border-white/5 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all"
+                    >
+                        <Command size={14} className="group-hover:text-cyan-400 transition-colors text-slate-400" />
+                        <span className="text-xs hidden md:inline text-slate-400 group-hover:text-slate-200">Palette</span>
+                        <kbd className="bg-black/30 px-1.5 py-0.5 rounded text-[10px] text-slate-500 ml-1 border border-white/5 font-mono">⌘K</kbd>
+                    </button>
 
-                <div className="grid gap-8">
-                    {/* Schema Definition */}
-                    <section className="glass-card">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                <Database className="text-indigo-400" size={20} />
+                    {usePage<{ auth: { user: any } }>().props.auth?.user && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger className="flex items-center gap-2 outline-none group">
+                                <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500/20 transition-colors">
+                                    <UserCircle size={18} />
+                                </div>
+                                <ChevronDown size={14} className="text-slate-500 group-hover:text-slate-300 transition-colors" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56 bg-[#0B0E14] border-white/10 text-slate-300">
+                                <UserMenuContent user={usePage<{ auth: { user: any } }>().props.auth.user} />
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
+                </div>
+            </header>
+
+            <main className="max-w-7xl mx-auto space-y-16 pb-32">
+                <section className="text-center space-y-6">
+                    <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-white">
+                        Querying at the <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">speed of thought</span>
+                    </h1>
+                    <p className="text-slate-400 text-lg max-w-2xl mx-auto font-light leading-relaxed">
+                        The world’s data is messy. <span className="text-slate-200 font-medium">Sift through the noise</span> with 
+                        our high-performance, in-browser migration engine.
+                    </p>
+                </section>
+
+                <div className="grid grid-cols-1 gap-16 pt-8">
+                    {/* Schema Definition Section */}
+                    <section className="space-y-8">
+                        <div className="flex justify-between items-center px-2">
+                            <h2 className="text-2xl font-bold flex items-center gap-3 text-white">
+                                <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-400">
+                                    <Layers size={24} />
+                                </div>
                                 Schema Definition
                             </h2>
-                            <button onClick={addTable} className="btn-primary flex items-center gap-2">
-                                <Plus size={18} /> Add Table
+                            <button 
+                                onClick={addTable} 
+                                className="bg-cyan-400 hover:bg-cyan-300 text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 transition-transform active:scale-95 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                            >
+                                <Plus size={18} /> New Table
                             </button>
                         </div>
 
-                        <div className="table-schema-grid">
-                            {tables.map((table, tIdx) => (
-                                <div key={tIdx} className="glass-card bg-white/5 p-4 border border-white/10">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <input 
-                                            value={table.name}
-                                            onChange={(e) => updateTable(tIdx, 'name', e.target.value)}
-                                            className="input-glass font-bold w-full mr-2"
-                                            placeholder="Table Name"
-                                        />
-                                        <button onClick={() => removeTable(tIdx)} className="text-red-400 hover:text-red-300">
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <AnimatePresence>
+                                {tables.map((table, tIdx) => (
+                                    <motion.div 
+                                        key={tIdx}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="relative bg-slate-900/40 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:border-cyan-500/20 transition-all group/table"
+                                    >
+                                        <div className="absolute top-4 right-4 opacity-0 group-hover/table:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={() => removeTable(tIdx)} 
+                                                className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-lg transition-all"
+                                                title="Delete Table"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
 
-                                    <div className="space-y-3 mb-4">
-                                        {table.columns.map((col, cIdx) => (
-                                            <div key={cIdx} className="column-row">
-                                                <input 
-                                                    value={col.name}
-                                                    onChange={(e) => updateColumn(tIdx, cIdx, 'name', e.target.value)}
-                                                    className="input-glass text-sm"
-                                                    placeholder="Col Name"
-                                                />
-                                                <select 
-                                                    value={col.type}
-                                                    onChange={(e) => updateColumn(tIdx, cIdx, 'type', e.target.value)}
-                                                    className="input-glass text-sm bg-slate-800"
-                                                >
-                                                    <option value="STRING">STRING</option>
-                                                    <option value="INT">INT</option>
-                                                    <option value="FLOAT">FLOAT</option>
-                                                    <option value="BOOLEAN">BOOLEAN</option>
-                                                </select>
-                                                <button onClick={() => removeColumn(tIdx, cIdx)} className="text-slate-500 hover:text-white">
-                                                    <X size={14} />
-                                                </button>
+                                        <div className="flex items-center gap-5 mb-10 pb-2 border-b border-white/5">
+                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-cyan-400 border border-white/10 shadow-lg">
+                                                <Database size={22} />
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div className="flex-1">
+                                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest mb-1.5 block">Table Name</label>
+                                                <input 
+                                                    value={table.name}
+                                                    onChange={(e) => updateTable(tIdx, 'name', e.target.value)}
+                                                    className="bg-transparent border-none p-0 focus:ring-0 font-bold text-xl text-white w-full placeholder:text-slate-700"
+                                                    placeholder="Enter table name..."
+                                                />
+                                            </div>
+                                        </div>
 
-                                    <button onClick={() => addColumn(tIdx)} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mb-4">
-                                        <Plus size={14} /> Add Column
-                                    </button>
+                                        <div className="space-y-6 mb-10">
+                                            <div className="grid grid-cols-12 gap-4 px-2">
+                                                <div className="col-span-7 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Column Name</div>
+                                                <div className="col-span-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</div>
+                                            </div>
+                                            
+                                            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                                {table.columns.map((col, cIdx) => (
+                                                    <motion.div 
+                                                        layout
+                                                        key={cIdx} 
+                                                        className="grid grid-cols-12 gap-4 items-center group/row"
+                                                    >
+                                                        <div className="col-span-7">
+                                                            <input 
+                                                                value={col.name}
+                                                                onChange={(e) => updateColumn(tIdx, cIdx, 'name', e.target.value)}
+                                                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-sm text-slate-200 focus:border-cyan-500/50 focus:bg-black/40 outline-none transition-all placeholder:text-slate-700 font-mono"
+                                                                placeholder="column_name"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-4">
+                                                            <div className="relative">
+                                                                <select 
+                                                                    value={col.type}
+                                                                    onChange={(e) => updateColumn(tIdx, cIdx, 'type', e.target.value as Column['type'])}
+                                                                    className="w-full bg-black/20 border border-white/10 rounded-lg pl-4 pr-8 py-3 text-[11px] text-cyan-400 font-bold font-mono focus:border-cyan-500/50 focus:bg-black/40 outline-none appearance-none cursor-pointer hover:bg-black/30 transition-all"
+                                                                >
+                                                                    <option value="STRING">STRING</option>
+                                                                    <option value="INT">INT</option>
+                                                                    <option value="FLOAT">FLOAT</option>
+                                                                    <option value="BOOLEAN">BOOLEAN</option>
+                                                                </select>
+                                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                                                    <ChevronDown size={12} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="col-span-1 flex justify-center">
+                                                            <button 
+                                                                onClick={() => removeColumn(tIdx, cIdx)} 
+                                                                className="text-slate-600 hover:text-red-400 opacity-0 group-hover/row:opacity-100 transition-all p-2 hover:bg-red-500/10 rounded-md"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </motion.div>
+                                                ))}
+                                            </div>
 
-                                    <div className="data-upload-zone">
-                                        <label className="cursor-pointer">
-                                            <Upload className="mx-auto mb-2 text-slate-400" size={24} />
-                                            <span className="text-xs block text-slate-400">
-                                                {table.data.length > 0 ? `${table.data.length} rows loaded` : 'Upload CSV/JSON'}
-                                            </span>
-                                            <input 
-                                                type="file" 
-                                                className="hidden" 
-                                                accept=".csv,.json"
-                                                onChange={(e) => e.target.files && handleFileUpload(tIdx, e.target.files[0])}
-                                            />
-                                        </label>
-                                    </div>
-                                </div>
-                            ))}
+                                            <button 
+                                                onClick={() => addColumn(tIdx)} 
+                                                className="w-full py-4 border border-dashed border-slate-700/50 hover:border-cyan-400/50 rounded-xl text-slate-400 hover:text-cyan-400 hover:bg-cyan-950/20 transition-all flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest group/add"
+                                            >
+                                                <Plus size={14} className="group-hover/add:scale-110 transition-transform" /> Add Column
+                                            </button>
+                                        </div>
+
+                                        <div className="pt-8 border-t border-white/5">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                    <Database size={12} /> Data Source
+                                                </span>
+                                                {table.data.length > 0 && (
+                                                    <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+                                                        {table.data.length} ROWS LOADED
+                                                    </span>
+                                                )}
+                                            </div>
+                                            
+                                            <label className={`
+                                                relative flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed transition-all cursor-pointer overflow-hidden group/upload
+                                                ${table.data.length > 0 
+                                                    ? 'border-emerald-500/30 bg-emerald-500/5' 
+                                                    : 'border-slate-800 hover:border-cyan-500/30 hover:bg-cyan-500/5'}
+                                            `}>
+                                                <div className="flex flex-col items-center justify-center p-6">
+                                                    {table.data.length > 0 ? (
+                                                        <>
+                                                            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                                                <Sparkles size={18} />
+                                                            </div>
+                                                            <p className="text-sm text-emerald-400 font-medium">Data ready</p>
+                                                            <p className="text-[10px] text-slate-500 mt-1">Click to replace file</p>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center mb-3 text-slate-500 group-hover/upload:text-cyan-400 group-hover/upload:bg-cyan-500/10 transition-colors">
+                                                                <Upload size={18} />
+                                                            </div>
+                                                            <p className="mb-1 text-sm text-slate-400 group-hover/upload:text-slate-200 transition-colors font-medium">
+                                                                <span className="text-cyan-400 group-hover/upload:text-cyan-300">Click to upload</span>
+                                                            </p>
+                                                            <p className="text-[10px] text-slate-600 tracking-wide uppercase">CSV or JSON</p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <input 
+                                                    type="file" 
+                                                    className="hidden" 
+                                                    accept=".csv,.json"
+                                                    onChange={(e) => e.target.files && handleFileUpload(tIdx, e.target.files[0])}
+                                                />
+                                            </label>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
                         </div>
                     </section>
 
-                    {/* Query Section */}
-                    <section className="glass-card">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                <Terminal className="text-sky-400" size={20} />
-                                SQL Playground
+                    {/* Playground Section */}
+                    <section className="bg-slate-900/40 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-2xl font-bold flex items-center gap-3 text-white">
+                                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
+                                    <Terminal size={24} />
+                                </div>
+                                Playground
                             </h2>
-                            <span className="text-xs text-slate-500 font-mono">In-Browser Query Engine</span>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono bg-black/40 px-3 py-1.5 rounded-full border border-white/5">
+                                <Sparkles size={12} className="text-purple-400" />
+                                INTELLIGENT AUTOCOMPLETE ENABLED
+                            </div>
                         </div>
                         
-                        <div className="sql-editor-container mb-6">
-                            <div className="editor-header">
-                                <div className="window-controls">
-                                    <div className="dot red"></div>
-                                    <div className="dot yellow"></div>
-                                    <div className="dot green"></div>
+                        <div className={`
+                            relative rounded-xl overflow-hidden border border-white/10 bg-[#050608] shadow-2xl mb-8
+                            transition-all duration-500
+                            ${isSuccessGlow ? 'shadow-[0_0_50px_rgba(34,211,238,0.15)] border-cyan-500/30' : ''}
+                        `}>
+                            <div className="bg-[#0B0E14] px-4 py-3 flex items-center justify-between border-b border-white/5">
+                                <div className="flex gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
                                 </div>
-                                <div className="editor-title">
-                                    <Terminal size={12} />
-                                    query_engine.sql
-                                </div>
-                                <div className="flex gap-4 items-center">
-                                    <span className="text-[10px] text-slate-600 font-mono tracking-widest">VERSION 1.0</span>
-                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono tracking-[0.2em]">MIGRATION_FLOW.SQL</div>
+                                <div className="w-10"></div> {/* Spacer */}
                             </div>
                             
                             <Editor
-                                height="220px"
+                                height="320px"
                                 defaultLanguage="sql"
                                 theme="vs-dark"
                                 value={query}
@@ -359,11 +521,11 @@ export default function MigrationHelper() {
                                 options={{
                                     minimap: { enabled: false },
                                     fontSize: 14,
-                                    fontFamily: '"Fira Code", monospace',
+                                    fontFamily: 'JetBrains Mono, monospace',
                                     scrollBeyondLastLine: false,
                                     automaticLayout: true,
                                     tabCompletion: 'on',
-                                    padding: { top: 20 },
+                                    padding: { top: 24, bottom: 24 },
                                     renderLineHighlight: 'all',
                                     lineNumbers: 'on',
                                     glyphMargin: false,
@@ -378,62 +540,151 @@ export default function MigrationHelper() {
                                 }}
                             />
                             
-                            <div className="editor-status-bar">
-                                <div className="status-item active">
-                                    <div className="status-indicator"></div>
-                                    Context: {tables.length} Tables Loaded
+                            <div className="bg-[#0B0E14] px-4 py-2 flex items-center justify-end gap-6 border-t border-white/5 text-[10px] text-slate-500 font-mono">
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${tables.length > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`}></div>
+                                    {tables.length} DATASOURCES ACTIVE
                                 </div>
-                                <div className="status-item">
-                                    UTF-8
-                                </div>
-                                <div className="status-item">
-                                    SQL / STANDARDIZED
-                                </div>
+                                <div>UTF-8</div>
+                                <div className="tracking-widest">RAW SQL</div>
                             </div>
                         </div>
 
                         <div className="flex justify-between items-center">
-                            <button onClick={runQuery} className="btn-primary bg-blue-600 hover:bg-blue-500 flex items-center gap-3 px-6 py-2.5 shadow-lg shadow-blue-900/20">
-                                <Play size={18} fill="currentColor" /> Run Migration Query
+                            <button 
+                                onClick={runQuery} 
+                                className="bg-white text-black hover:bg-slate-200 font-bold px-8 py-3 rounded-xl flex items-center gap-2 shadow-xl transition-all active:scale-95"
+                            >
+                                <Play size={18} fill="currentColor" /> EXECUTE TRANSACTION
                             </button>
                             {results.length > 0 && (
-                                <button onClick={downloadCSV} className="btn-primary bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center gap-2">
-                                    <Download size={18} /> Export Results
+                                <button 
+                                    onClick={downloadCSV} 
+                                    className="text-slate-400 hover:text-white border border-white/10 hover:bg-white/5 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                                >
+                                    <Download size={16} /> Export Results
                                 </button>
                             )}
                         </div>
-                        {error && (
-                            <motion.div 
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-4 p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg"
-                            >
-                                <div className="font-bold mb-1 flex items-center gap-2 text-red-400">
-                                    <X size={14} /> Query Error
-                                </div>
-                                {error}
-                            </motion.div>
-                        )}
+
+                        <AnimatePresence>
+                            {error && (
+                                <motion.div 
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-400"
+                                >
+                                    <AlertCircle size={20} className="shrink-0" />
+                                    <span className="font-mono text-sm">{error}</span>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </section>
 
-                    {/* Results Table */}
-                    {results.length > 0 && (
-                        <motion.section 
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="glass-card"
-                        >
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold">Migration Results</h2>
-                                <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full border border-blue-500/20">
-                                    {results.length} ROWS FOUND
-                                </span>
-                            </div>
-                            <DetailedDataTable data={results} columns={[]} />
-                        </motion.section>
-                    )}
+                    {/* Results Section */}
+                    <AnimatePresence>
+                        {results.length > 0 && (
+                            <motion.section 
+                                initial={{ opacity: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="bg-slate-900/40 backdrop-blur-sm border border-white/10 rounded-2xl p-8 overflow-hidden"
+                            >
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl font-bold text-white">Migration Results</h2>
+                                    <span className="px-3 py-1 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold rounded-full border border-cyan-500/20 tracking-widest uppercase">
+                                        {results.length} ROWS FOUND
+                                    </span>
+                                </div>
+                                <div className="border border-white/5 rounded-xl overflow-hidden">
+                                    <DetailedDataTable data={results} columns={[]} />
+                                </div>
+                            </motion.section>
+                        )}
+                    </AnimatePresence>
                 </div>
-            </motion.div>
+            </main>
+
+            {/* Command Palette */}
+            <AnimatePresence>
+                {isCommandPaletteOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-start justify-center pt-32 bg-black/60 backdrop-blur-sm" 
+                        onClick={() => setIsCommandPaletteOpen(false)}
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, y: -20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            onClick={e => e.stopPropagation()} 
+                            className="w-full max-w-xl bg-[#11141A] border border-white/10 rounded-xl shadow-2xl overflow-hidden"
+                        >
+                            <CommandMenu label="Command Palette">
+                                <div className="flex items-center border-b border-white/5 px-4">
+                                    <Search size={18} className="text-slate-500" />
+                                    <CommandMenu.Input 
+                                        placeholder="Type a command..." 
+                                        autoFocus 
+                                        className="w-full bg-transparent border-none outline-none p-4 text-white text-lg placeholder:text-slate-600" 
+                                    />
+                                </div>
+                                <CommandMenu.List className="p-2 max-h-[300px] overflow-y-auto">
+                                    <CommandMenu.Empty className="p-8 text-center text-slate-500 text-sm">No results found.</CommandMenu.Empty>
+                                    
+                                    <CommandMenu.Group heading={<span className="text-[10px] px-2 text-slate-500 tracking-[0.2em] font-bold block mb-2 mt-2">ACTIONS</span>}>
+                                        <CommandMenu.Item 
+                                            value="execute"
+                                            onSelect={() => { runQuery(); setIsCommandPaletteOpen(false); }}
+                                            className="flex items-center gap-3 p-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg cursor-pointer transition-colors"
+                                        >
+                                            <Play size={14} className="text-cyan-400" />
+                                            <span>Execute Current Query</span>
+                                        </CommandMenu.Item>
+                                        <CommandMenu.Item 
+                                            value="new table"
+                                            onSelect={() => { addTable(); setIsCommandPaletteOpen(false); }}
+                                            className="flex items-center gap-3 p-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg cursor-pointer transition-colors"
+                                        >
+                                            <Plus size={14} className="text-cyan-400" />
+                                            <span>Add New Table Definition</span>
+                                        </CommandMenu.Item>
+                                        <CommandMenu.Item 
+                                            value="export"
+                                            onSelect={() => { downloadCSV(); setIsCommandPaletteOpen(false); }}
+                                            className="flex items-center gap-3 p-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg cursor-pointer transition-colors"
+                                        >
+                                            <Download size={14} className="text-cyan-400" />
+                                            <span>Export Last Results</span>
+                                        </CommandMenu.Item>
+                                    </CommandMenu.Group>
+
+                                    <CommandMenu.Group heading={<span className="text-[10px] px-2 text-slate-500 tracking-[0.2em] font-bold mt-4 block mb-2">DATABASES</span>}>
+                                        {tables.map((t, i) => (
+                                            <CommandMenu.Item 
+                                                key={i} 
+                                                value={t.name}
+                                                onSelect={() => { 
+                                                    setQuery(`SELECT * FROM ${t.name}`);
+                                                    setIsCommandPaletteOpen(false);
+                                                }}
+                                                className="flex items-center gap-3 p-3 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg cursor-pointer transition-colors"
+                                            >
+                                                <Database size={14} className="text-slate-500" />
+                                                <span>View content of <span className="text-cyan-400 font-mono">{t.name}</span></span>
+                                            </CommandMenu.Item>
+                                        ))}
+                                    </CommandMenu.Group>
+                                </CommandMenu.List>
+                            </CommandMenu>
+                            <div className="bg-white/5 p-2 text-center text-[10px] text-slate-500 font-mono uppercase tracking-[0.2em] border-t border-white/5">
+                                Press <kbd className="bg-white/10 px-1 rounded text-slate-400">ESC</kbd> to close
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

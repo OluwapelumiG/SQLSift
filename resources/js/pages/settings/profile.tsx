@@ -2,23 +2,11 @@ import { Transition } from '@headlessui/react';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
-import type { BreadcrumbItem, SharedData } from '@/types';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Profile settings',
-        href: edit().url,
-    },
-];
+import type { SharedData } from '@/types';
+import { User, Mail, Save } from 'lucide-react';
 
 export default function Profile({
     mustVerifyEmail,
@@ -30,19 +18,21 @@ export default function Profile({
     const { auth } = usePage<SharedData>().props;
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <SettingsLayout>
             <Head title="Profile settings" />
 
-            <h1 className="sr-only">Profile Settings</h1>
+            <div className="space-y-8">
+                {/* Header Section */}
+                <div className="space-y-1">
+                    <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-white">
+                            Profile Information
+                    </h2>
+                    <p className="text-slate-400 text-sm">
+                        Update your account's profile information and email address.
+                    </p>
+                </div>
 
-            <SettingsLayout>
-                <div className="space-y-6">
-                    <Heading
-                        variant="small"
-                        title="Profile information"
-                        description="Update your name and email address"
-                    />
-
+                <div className="p-6 rounded-xl bg-black/40 border border-white/5 space-y-6">
                     <Form
                         {...ProfileController.update.form()}
                         options={{
@@ -52,79 +42,71 @@ export default function Profile({
                     >
                         {({ processing, recentlySuccessful, errors }) => (
                             <>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Name</Label>
-
-                                    <Input
-                                        id="name"
-                                        className="mt-1 block w-full"
-                                        defaultValue={auth.user.name}
-                                        name="name"
-                                        required
-                                        autoComplete="name"
-                                        placeholder="Full name"
-                                    />
-
-                                    <InputError
-                                        className="mt-2"
-                                        message={errors.name}
-                                    />
+                                <div className="space-y-2">
+                                    <label htmlFor="name" className="text-xs font-bold uppercase tracking-widest text-slate-500">Name</label>
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                                        <input
+                                            id="name"
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg pl-11 pr-4 py-3 text-sm text-slate-200 focus:border-cyan-500/50 focus:bg-black/40 outline-none transition-all placeholder:text-slate-600"
+                                            defaultValue={auth.user.name}
+                                            name="name"
+                                            required
+                                            autoComplete="name"
+                                            placeholder="Full name"
+                                        />
+                                    </div>
+                                    {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name}</p>}
                                 </div>
 
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Email address</Label>
-
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        className="mt-1 block w-full"
-                                        defaultValue={auth.user.email}
-                                        name="email"
-                                        required
-                                        autoComplete="username"
-                                        placeholder="Email address"
-                                    />
-
-                                    <InputError
-                                        className="mt-2"
-                                        message={errors.email}
-                                    />
+                                <div className="space-y-2">
+                                    <label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-slate-500">Email Address</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                                        <input
+                                            id="email"
+                                            type="email"
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg pl-11 pr-4 py-3 text-sm text-slate-200 focus:border-cyan-500/50 focus:bg-black/40 outline-none transition-all placeholder:text-slate-600"
+                                            defaultValue={auth.user.email}
+                                            name="email"
+                                            required
+                                            autoComplete="username"
+                                            placeholder="Email address"
+                                        />
+                                    </div>
+                                    {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                                 </div>
 
                                 {mustVerifyEmail &&
                                     auth.user.email_verified_at === null && (
-                                        <div>
-                                            <p className="-mt-4 text-sm text-muted-foreground">
-                                                Your email address is
-                                                unverified.{' '}
+                                        <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-500/80 text-sm">
+                                            <p>
+                                                Your email address is unverified.{' '}
                                                 <Link
                                                     href={send()}
                                                     as="button"
-                                                    className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                                    className="underline hover:text-yellow-400 transition-colors"
                                                 >
-                                                    Click here to resend the
-                                                    verification email.
+                                                    Click here to resend the verification email.
                                                 </Link>
                                             </p>
 
-                                            {status ===
-                                                'verification-link-sent' && (
-                                                <div className="mt-2 text-sm font-medium text-green-600">
-                                                    A new verification link has
-                                                    been sent to your email
-                                                    address.
+                                            {status === 'verification-link-sent' && (
+                                                <div className="mt-2 font-medium text-green-400">
+                                                    A new verification link has been sent to your email address.
                                                 </div>
                                             )}
                                         </div>
                                     )}
 
-                                <div className="flex items-center gap-4">
-                                    <Button
+                                <div className="flex items-center gap-4 pt-4">
+                                    <button
                                         disabled={processing}
-                                        data-test="update-profile-button"
+                                        className="flex items-center gap-2 bg-cyan-500 text-black font-bold px-6 py-2.5 rounded-lg hover:bg-cyan-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(0,245,255,0.2)] hover:shadow-[0_0_30px_rgba(0,245,255,0.4)]"
                                     >
-                                        Save
-                                    </Button>
+                                        <Save size={16} />
+                                        Save Changes
+                                    </button>
 
                                     <Transition
                                         show={recentlySuccessful}
@@ -133,8 +115,9 @@ export default function Profile({
                                         leave="transition ease-in-out"
                                         leaveTo="opacity-0"
                                     >
-                                        <p className="text-sm text-neutral-600">
-                                            Saved
+                                        <p className="text-sm text-cyan-400 flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(0,245,255,1)]"></span>
+                                            Saved Successfully
                                         </p>
                                     </Transition>
                                 </div>
@@ -143,8 +126,15 @@ export default function Profile({
                     </Form>
                 </div>
 
-                <DeleteUser />
-            </SettingsLayout>
-        </AppLayout>
+                <div className="pt-8 border-t border-white/5">
+                        <div className="p-6 rounded-xl bg-red-500/5 border border-red-500/10 space-y-6">
+                        <h3 className="text-red-400 font-bold text-lg flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Danger Zone
+                        </h3>
+                            <DeleteUser />
+                        </div>
+                </div>
+            </div>
+        </SettingsLayout>
     );
 }
