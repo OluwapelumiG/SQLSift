@@ -3,8 +3,12 @@ import { Head } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import alasql from 'alasql';
 import Papa from 'papaparse';
-import { Plus, Trash2, Upload, Database, Play, Download, X } from 'lucide-react';
+import { Plus, Trash2, Upload, Database, Play, Download, X, Search, Terminal } from 'lucide-react';
+import Editor from 'react-simple-code-editor';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-sql';
 import '../../css/MigrationHelper.css';
+import { DetailedDataTable } from '@/components/DetailedDataTable';
 
 interface Column {
     name: string;
@@ -202,22 +206,32 @@ export default function MigrationHelper() {
                     {/* Query Section */}
                     <section className="glass-card">
                         <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-                            <Play className="text-emerald-400" size={20} />
-                            SQL Query
+                            <Terminal className="text-sky-400" size={20} />
+                            SQL Playground
                         </h2>
-                        <textarea 
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            className="sql-editor mb-4"
-                            placeholder="SELECT * FROM table1 JOIN table2 ON table1.id = table2.user_id"
-                        />
+                        <div className="sql-editor-container mb-4">
+                            <Editor
+                                value={query}
+                                onValueChange={code => setQuery(code)}
+                                highlight={code => Prism.highlight(code, Prism.languages.sql, 'sql')}
+                                padding={20}
+                                style={{
+                                    fontFamily: '"Fira Code", "Fira Mono", monospace',
+                                    fontSize: 14,
+                                    minHeight: '150px',
+                                    backgroundColor: '#000',
+                                    color: '#fff',
+                                }}
+                                className="sql-editor"
+                            />
+                        </div>
                         <div className="flex justify-between items-center">
-                            <button onClick={runQuery} className="btn-primary bg-emerald-600 hover:bg-emerald-500 flex items-center gap-2">
-                                <Play size={18} fill="currentColor" /> Run Query
+                            <button onClick={runQuery} className="btn-primary bg-blue-600 hover:bg-blue-500 flex items-center gap-2">
+                                <Play size={18} fill="currentColor" /> Run Migration Query
                             </button>
                             {results.length > 0 && (
                                 <button onClick={downloadCSV} className="btn-primary bg-indigo-600 hover:bg-indigo-500 flex items-center gap-2">
-                                    <Download size={18} /> Download CSV
+                                    <Download size={18} /> Export Results
                                 </button>
                             )}
                         </div>
@@ -225,8 +239,11 @@ export default function MigrationHelper() {
                             <motion.div 
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-4 p-3 bg-red-500/20 border border-red-500/50 text-red-200 text-sm rounded"
+                                className="mt-4 p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg"
                             >
+                                <div className="font-bold mb-1 flex items-center gap-2 text-red-400">
+                                    <X size={14} /> Query Error
+                                </div>
                                 {error}
                             </motion.div>
                         )}
@@ -235,31 +252,17 @@ export default function MigrationHelper() {
                     {/* Results Table */}
                     {results.length > 0 && (
                         <motion.section 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
                             className="glass-card"
                         >
-                            <h2 className="text-xl font-bold mb-4">Results ({results.length} rows)</h2>
-                            <div className="results-table-container">
-                                <table className="results-table">
-                                    <thead>
-                                        <tr>
-                                            {Object.keys(results[0]).map(key => (
-                                                <th key={key}>{key}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {results.map((row, i) => (
-                                            <tr key={i}>
-                                                {Object.values(row).map((val: any, j) => (
-                                                    <td key={j}>{String(val)}</td>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold">Migration Results</h2>
+                                <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full border border-blue-500/20">
+                                    {results.length} ROWS FOUND
+                                </span>
                             </div>
+                            <DetailedDataTable data={results} columns={[]} />
                         </motion.section>
                     )}
                 </div>
