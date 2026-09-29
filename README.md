@@ -83,6 +83,29 @@ Built with a modern, high-performance stack:
 7. **Launch**
    Visit `http://localhost:8000` in your browser.
 
+## Docker
+
+Uses SQLite for anything that needs persistence (auth/sessions). No separate database service.
+
+```bash
+docker compose up --build
+```
+
+Visit `http://localhost:8000`.
+
+## Deploy on Render
+
+1. Push this repo to GitHub.
+2. In Render: **New → Web Service →** connect the repo → **Docker**.
+3. Set these environment variables:
+   - `APP_KEY` — run locally: `php artisan key:generate --show`
+   - `APP_URL` — your Render URL, e.g. `https://sqlsift.onrender.com`
+4. Deploy.
+
+Or use the included `render.yaml` (**New → Blueprint**).
+
+> SQLite lives on the container disk. On free Render plans it resets on redeploy. Attach a persistent disk at `/var/www/html/database` if you need auth/session data to survive deploys.
+
 ## License
 
 SQLSift is open-source software licensed under the [MIT license](https://opensource.org/licenses/MIT).
