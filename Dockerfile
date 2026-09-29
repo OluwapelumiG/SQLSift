@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- Build frontend + PHP deps ---
-FROM php:8.3-cli-bookworm AS builder
+FROM php:8.4-cli-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git unzip curl libsqlite3-dev \
@@ -30,6 +30,9 @@ RUN npm ci
 
 COPY . .
 
+# Host-generated discovery cache can reference --dev packages (e.g. Pail).
+RUN rm -f bootstrap/cache/packages.php bootstrap/cache/services.php
+
 # Wayfinder runs artisan during `vite build`
 ENV APP_ENV=production \
     APP_KEY=base64:dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3Q= \
@@ -42,7 +45,7 @@ RUN touch /tmp/build.sqlite \
     && rm -rf node_modules
 
 # --- Runtime ---
-FROM php:8.3-cli-bookworm
+FROM php:8.4-cli-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsqlite3-dev \
